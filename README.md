@@ -3,9 +3,45 @@
 ![GitHub stars](https://img.shields.io/github/stars/tsunglung/XiaomiHumidifier)
 ![GitHub forks](https://img.shields.io/github/forks/tsunglung/XiaomiHumidifier)
 ![GitHub watchers](https://img.shields.io/github/watchers/tsunglung/XiaomiHumidifier)
-<a href="https://www.buymeacoffee.com/tsunglung" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/default-orange.png" alt="Buy Me A Coffee" height="30" width="120"></a>
 
 This is a custom component for Home Assistant to integrate the Xiaomi Smart Humidifier/Dehumidifier.
+
+> **Fork notice** — this is a fork of [tsunglung/XiaomiHumidifier](https://github.com/tsunglung/XiaomiHumidifier)
+> carrying one fix (see below) while the change is submitted upstream
+> ([PR #14](https://github.com/tsunglung/XiaomiHumidifier/pull/14)). All credit for the integration
+> itself goes to the original author.
+
+## What this fork fixes — multiple identical units
+
+**Symptom**: with two units of the same model (e.g. 2× `dmaker.derh.22ht`), the second unit
+only creates its `humidifier` entity; all `sensor` / `switch` / `button` entities are silently
+dropped with *"Platform does not generate unique IDs … already exists - ignoring"*.
+
+**Root cause**: those platforms built `unique_id` from the model string, so every same-model
+unit generated identical unique_ids.
+
+**Fix**: one line per platform (`sensor.py`, `switch.py`, `button.py`) — use the per-device
+entry MAC that was already passed into every constructor:
+
+```diff
+-return "{}_{}".format(self._name, self.entity_description.key)
++return "{}_{}".format(self._unique_id, self.entity_description.key)
+```
+
+**Migration**: after installing this fix, entities are recreated under MAC-based unique_ids;
+entities previously created under model-based ids become orphans — remove them from the
+entity registry once the new set is verified. Single-unit installs are unaffected apart from
+the unique_id format.
+
+## Installation
+
+Until the fix is merged into this fork's `master`, install from the
+`fix/per-device-unique-ids` branch (or wait for the upstream merge):
+
+- **HACS**: add this repository as a custom repository, then copy the contents of
+  `custom_components/xiaomi_miio_humidifier/` from the `fix/per-device-unique-ids` branch
+  into your `config/custom_components/xiaomi_miio_humidifier/` and restart Home Assistant.
+- Setup afterwards is unchanged — see *Setup* below.
 
 Credits: Thanks to [Rytilahti](https://github.com/rytilahti/python-miio) for all the work.
 
@@ -48,9 +84,3 @@ Then restart HA.
 3. Select the Humidifier/Dehumidifier device that you want to integrate.
 
 Or you also can manually input Humidifier/Dehumidifier IP address and token
-
-Buy me a Coffee
-
-|  LINE Pay | LINE Bank | JKao Pay |
-| :------------: | :------------: | :------------: |
-|![LINE Pay](linepay.jpg "LINE Pay")|![Line Bank](linebank.jpg "Line Bank") |![Jko Pay](jkopay.jpg "Jko Pay") |
